@@ -34,7 +34,7 @@ The following is the order in which configuration options are selected:
 3. Configuration option
 4. Hard-coded default
 
-# Configuration Finding
+## Configuration Finding
 
 In both project checking mode (with no explicit configuration supplied) and
 single-file checking mode, we perform an upward file search to find a
@@ -54,7 +54,7 @@ If a `pyproject.toml` is found, Pyrefly will stop searching, even if no `[tool.p
 section is found. The same errors will be returned as when loading a `pyrefly.toml` if
 the config is invalid.
 
-# Configuration Options
+## Configuration Options
 
 - `project_includes`: the glob patterns used to describe which files to type
   check, typically understood as user-space files. This takes highest precedence
@@ -67,7 +67,7 @@ the config is invalid.
   - Notes:
     - When overridden by passing in `FILES...`, we do not consult the
       relevant config file for what to use for `project_excludes`. If
-      `project_excludes` should not use the default, override it with the flag as
+      `project_excludes` should not use the default value, override it with the flag as
       well.
     - When a `project_includes` pattern does not match any files, we will return
       an error.
@@ -88,6 +88,9 @@ the config is invalid.
       not files under a directory named `__pycache__/`.
     - It is an error if no files are returned from any `project_includes` because
       they are filtered out by `project_excludes` entries.
+    - When passing in `FILES...`, we also do not consult the config file for
+      what to use for `project_excludes`. If `project_excludes` should not use
+      the default value, override it with a flag as well.
 - `search_path`: a file path describing a root from which imports should be
   found and imported from (including modules in `project_includes`). This takes
   the highest precedence in import order, before `typeshed` and
@@ -158,19 +161,27 @@ the config is invalid.
     in mypy
   - Notes: setting `<error-code> = true` is the same as having no error code configuration present, which means
     the error will be shown. Setting `<error-code> = false` will disable the error for type checking.
-- `ignore_missing_imports_from`: string-prefix-matched names of modules from which import errors should be
-  ignored. For example, if Pyrefly can't find `from x.y import z`, adding `x`, `x.` or `x.y` to this config will
+- `replace_imports_with_any`: names of modules from which import errors should be
+  ignored, and the module should be replaced with `typing.Any`. For example, with
+  `from x.y import z` in a file, adding `x`, `x.*` or `x.y` to this config will
   silence those import errors and replace the module with `typing.Any`. If the module can be found, its type
-  information will still be loaded, and will not be replaced with `typing.Any`.
-  - Type: list of string prefixes
+  information will still be replaced with `typing.Any`.
+  - Type: list of regex
   - Default: `[]`
   - Flag equivalent: none
   - ENV equivalent: none
   - Equivalent configs: `ignore_missing_imports` in mypy
   - Notes: `reportMissingImports = false` has similar behavior in Pyright, but ignores *all* import errors instead
     of import errors from specific modules.
+- `ignore_errors_in_generated_code`: Whether to ignore type errors in generated code. If enabled, generated files
+  will be treated as if they are included in `project_excludes`.
+  Generated code are determined by checking if the file contents contain the substring `{'@' + 'generated'}`.
+  - Type: bool
+  - Default: false
+  - Flag equivalent: `--ignore-errors-in-generated-code`
+  - ENV equivalent: `IGNORE_ERRORS_IN_GENERATED_CODE`
 
-# Environment Autoconfiguration
+## Environment Autoconfiguration
 
 If any of `python_platform`, `python_version`, or `site_package_path` are empty, we attempt to query an interpreter
 for the missing values. By default we query `python3` if it's available on the path, but the interpreter can be

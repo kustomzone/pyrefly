@@ -5,7 +5,7 @@ slug: /learn-python-typing
 description: Get to know Python's Type System with working examples
 ---
 
-import TryPyre2BrowserOnly from '@site/src/try-pyre2/TryPyre2BrowserOnly'
+import TryPyreflyBrowserOnly from '@site/src/try-pyrefly/TryPyreflyBrowserOnly'
 
 # Give Pyrefly a try with some working examples
 
@@ -18,7 +18,7 @@ In this guide, we'll explore the different features of Python's type system, inc
 
 Python's built-in types can be used to write many simple type hints.
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
   sampleFilename="basic_types.py"
   isCodeSnippet={true}
   codeSample={`# Example: Basic Types
@@ -45,14 +45,13 @@ reveal_type(person) # revealed type: dict[str, str]
 is_admin: bool = True
 reveal_type(is_admin) # revealed type: Literal[True]
 `}
-    showErrorPanel={false}
   />
 </pre>
 
 ## Functions
 Defining the parameter and return types for a function doesn't just help prevent bugs, but it makes it easier to navigate in other files. You don't always need to define a return type - we'll do our best to infer it for you! We can't always get it right and an explicit return type will help your IDE navigate faster and more accurately.
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
   sampleFilename="functions.py"
   isCodeSnippet={true}
   codeSample={`# Example: Functions
@@ -69,7 +68,6 @@ def whatDoesThisFunctionReturnAgain(a: int, b: int):
 
 reveal_type(whatDoesThisFunctionReturnAgain(2, 3)) # revealed type: int
 `}
-    showErrorPanel={false}
   />
 </pre>
 
@@ -78,7 +76,7 @@ reveal_type(whatDoesThisFunctionReturnAgain(2, 3)) # revealed type: int
 Generics allow you to define reusable functions and classes that work with multiple types. This feature enables you to write more flexible and adaptable code.
 
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
     sampleFilename="generics.py"
     isCodeSnippet={true}
     codeSample={`# Example: Generic Classes
@@ -94,7 +92,6 @@ class C[T]:
 c = C(0)
 reveal_type(c.box())  # revealed type: list[int]
 `}
-    showErrorPanel={false}
   />
 </pre>
 
@@ -103,7 +100,7 @@ reveal_type(c.box())  # revealed type: list[int]
 Protocols enable structural typing, which allows you to define interfaces without explicit inheritance. This feature helps you write more modular and composable code.
 
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
     sampleFilename="protocols.py"
     isCodeSnippet={true}
     codeSample={`# Example: Structural Typing with Protocols
@@ -126,7 +123,6 @@ def f(writer: Writer):
 f(GoodWorld()) # OK
 f(BadWorld())  # ERROR!
 `}
-    showErrorPanel={false}
   />
 </pre>
 
@@ -135,7 +131,7 @@ f(BadWorld())  # ERROR!
 Dataclasses allow you to create type-safe data structures while minimizing boilerplate.
 
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
     sampleFilename="data_classes.py"
     isCodeSnippet={true}
     codeSample={`# Example: Dataclasses
@@ -150,7 +146,6 @@ class Point:
 Point(x=0.0, y=0.0)    # OK
 Point(x=0.0, y="oops") # ERROR!
 `}
-    showErrorPanel={false}
   />
 </pre>
 
@@ -160,7 +155,7 @@ Point(x=0.0, y="oops") # ERROR!
 Typed dictionaries enable you to define dictionaries with specific key-value types. This feature lets you bring type safety to ad-hoc dictionary structures without major refactoring.
 
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
     sampleFilename="typed_dict.py"
     isCodeSnippet={true}
     codeSample={`# Example: TypedDict
@@ -174,7 +169,6 @@ class Movie(TypedDict):
 good_movie: Movie = {"name": "Toy Story", "year": 1995} # OK
 bad_movie: Movie = {"name": "The Room", "year": "2003"}  # ERROR!
 `}
-    showErrorPanel={false}
   />
 </pre>
 
@@ -183,7 +177,7 @@ bad_movie: Movie = {"name": "The Room", "year": "2003"}  # ERROR!
 Overloads allow you to define multiple function signatures for a single function. Like generics, this feature helps you write more flexible and adaptable code.
 
 <pre>
-  <TryPyre2BrowserOnly
+  <TryPyreflyBrowserOnly
     sampleFilename="overloads.py"
     isCodeSnippet={true}
     codeSample={`# Example: Overloads
@@ -202,6 +196,5 @@ def f(x: int | str) -> int | str:
 reveal_type(f(0))  # revealed type: int
 reveal_type(f("")) # revealed type: str
 `}
-    showErrorPanel={false}
   />
 </pre>
