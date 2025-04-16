@@ -34,13 +34,13 @@ jobs:
         run: rustup install nightly && rustup default nightly
       - name: Build
         working-directory: ./website
-        run: cargo version && chmod +x scripts/build.sh && scripts/build.sh
+        run: cargo version && chmod +x scripts/build.sh && scripts/build.sh && yarn build-wasm-for-test
       - name: Typecheck
         working-directory: ./website
         run: yarn tsc --noEmit
       - name: Test
         working-directory: ./website
-        run: yarn test
+        run:  yarn test
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
