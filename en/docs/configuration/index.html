@@ -16,9 +16,9 @@
 
 
 
-<link rel="stylesheet" href="/stylex.css"><link rel="stylesheet" href="/assets/css/styles.c1a15e74.css">
-<script src="/assets/js/runtime~main.856d0cae.js" defer="defer"></script>
-<script src="/assets/js/main.ffbbd75b.js" defer="defer"></script>
+<link rel="stylesheet" href="/stylex.css"><link rel="stylesheet" href="/assets/css/styles.44cf4527.css">
+<script src="/assets/js/runtime~main.f563c875.js" defer="defer"></script>
+<script src="/assets/js/main.680da34f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <script>!function(){function t(t){document.documentElement.setAttribute("data-theme",t)}var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();t(null!==e?e:"light")}(),function(){try{const n=new URLSearchParams(window.location.search).entries();for(var[t,e]of n)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script>
@@ -40,7 +40,7 @@ name with the <code>--config</code>/<code>-c</code> flag, but they will not be a
 <p>The following is the order in which configuration options are selected:</p>
 <ol>
 <li>CLI flag</li>
-<li>Environment variable override -- This is the same as <code>PYRE_&lt;CLI flag name&gt;</code></li>
+<li>Environment variable override -- This is the same as <code>PYREFLY_&lt;CLI flag name&gt;</code></li>
 <li>Configuration option</li>
 <li>Hard-coded default</li>
 </ol>
@@ -118,7 +118,7 @@ import it.<!-- -->
 <li>Type: list of directories</li>
 <li>Default: <code>[&quot;.&quot;]</code></li>
 <li>Flag equivalent: <code>--search-path</code></li>
-<li>ENV equivalent: <code>PYRE_SEARCH_PATH</code></li>
+<li>ENV equivalent: <code>PYREFLY_SEARCH_PATH</code></li>
 <li>Equivalent configs: <code>extraPaths</code> in Pyright, <code>mypy_path</code> in mypy</li>
 <li>Notes: we automatically append <code>&quot;.&quot;</code> (the directory containing the
 configuration file) to the <code>search_roots</code> when type checking as a sensible
@@ -132,7 +132,7 @@ resolution, after <code>project_includes</code>, <code>typeshed</code>, and <cod
 <li>Type: list of directories</li>
 <li>Default: result from <a href="#environment-autoconfiguration">Environment Autoconfiguration</a> or <code>[]</code></li>
 <li>Flag equivalent: <code>--site-package-path</code></li>
-<li>ENV equivalent: <code>PYRE_SITE_PACKAGE_PATH</code></li>
+<li>ENV equivalent: <code>PYREFLY_SITE_PACKAGE_PATH</code></li>
 <li>Equivalent configs: none</li>
 </ul>
 </li>
@@ -144,7 +144,7 @@ values.<!-- -->
 <li>Type: string</li>
 <li>Default: result from <a href="#environment-autoconfiguration">Environment Autoconfiguration</a> or &quot;linux&quot;</li>
 <li>Flag equivalent: <code>--python-platform</code></li>
-<li>ENV equivalent: <code>PYRE_PYTHON_PLATFORM</code></li>
+<li>ENV equivalent: <code>PYREFLY_PYTHON_PLATFORM</code></li>
 <li>Equivalent configs: <code>pythonPlatform</code> in Pyright, <code>platform</code> in mypy</li>
 </ul>
 </li>
@@ -157,7 +157,7 @@ micro can be omitted to take the default positional value.<!-- -->
 <li>Type: string</li>
 <li>Default: result from <a href="#environment-autoconfiguration">Environment Autoconfiguration</a> or <code>3.13.0</code></li>
 <li>Flag equivalent: <code>--python-version</code></li>
-<li>ENV equivalent: <code>PYRE_PYTHON_VERSION</code></li>
+<li>ENV equivalent: <code>PYREFLY_PYTHON_VERSION</code></li>
 <li>Equivalent configs: <code>pythonVersion</code> in Pyright, <code>python_version</code> in mypy</li>
 </ul>
 </li>
@@ -168,7 +168,7 @@ See the <a href="#environment-autoconfiguration">Environment Autoconfiguration s
 <li>Type: string of executable or path to executable</li>
 <li>Default: <code>python3</code></li>
 <li>Flag equivalent: <code>--python-interpreter</code></li>
-<li>ENV equivalent: <code>PYRE_PYTHON_INTERPRETER</code></li>
+<li>ENV equivalent: <code>PYREFLY_PYTHON_INTERPRETER</code></li>
 <li>Equivalent configs: <code>python_executable</code> in mypy</li>
 <li>Notes:<!-- -->
 <ul>
