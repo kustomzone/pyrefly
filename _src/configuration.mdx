@@ -15,7 +15,7 @@ NOTE: this is early in its development, so the options listed here are subject
 to change in name, usage, type, quantity, and structure.
 
 Configurations can be specified in a [TOML file](https://toml.io/en/) at the root of
-your project (or elsewhere, as long as the `search_path` is correct) named
+your project (or elsewhere, as long as the path-based config options point to the right place) named
 `pyrefly.toml`, with all configuration options in the top-level of the document.
 You can also specify a configuration in a `pyproject.toml` under a `[tool.pyrefly]`
 section. Other config names can be used when explicitly passing in the config file
@@ -33,195 +33,321 @@ The following is the order in which configuration options are selected:
 3. Configuration option
 4. Hard-coded default
 
+## Type Checking Modes
+
+Pyrefly has two different modes it can run in when type checking your project, which
+correspond to different but useful ways we expect most people to interact with Pyrefly:
+
+- Project mode: attempt to load a config, falling back to Pyrefly's default config when
+  none can be found, and type check using that one config. This involves getting the
+  [`project_includes`](#project_includes) and [`project_excludes`](#project_excludes) from the file, expanding the patterns,
+  and type checking on those files.
+  - Project mode is used whenever `-c`/`--config` is passed in OR when no files are
+    provided with the CLI invocation.
+- Per-file or Single-file mode: when given [`FILES...`](#project_includes) (and optionally [`--project-excludes`](#project_excludes))
+  during a CLI invocation, expand the patterns and find the relevant config file for each
+  file listed. `project_includes` and `project_excludes` are ignored from the config file,
+  but it is used for all remaining config options.
+
 ## Configuration Finding
 
-In both project checking mode (with no explicit configuration supplied) and
-single-file checking mode, we perform an upward file search to find a
-configuration file. We check each directory from the start location to the
-filesystem root, looking first for `pyrefly.toml` then `pyproject.toml`, in
+In both project checking mode and single-file checking mode (see [Type Checking Modes](#type-checking-modes)
+for more info), we may perform an upward file search to find a
+configuration file if one is not provided with `-c`/`--config`. We each directory
+from the 'start location' to the filesystem root, looking first for `pyrefly.toml` then `pyproject.toml`, in
 the same directory before looking at its parent.
 
-For project checking mode, the start location is the CWD. We do not perform any
-searching if the `--config`/`-c` flag is used. For single-file checking mode,
-the start location is the directory containing the file to be type checked. No
-config flag can be passed into Pyrefly in single file checking mode.
+For project checking mode, the 'start location' is current working directory. For single-file checking mode,
+the start location is the directory containing each file to be type checked, and
+we find the config for each file matched by the pattern provided. No
+config flag can be passed into Pyrefly in single file checking mode, since the behavior
+is very ambiguous (would we apply the given config to each file? should the config
+override all settings, or jsut some of them?, ...).
 
 If a `pyrefly.toml` is found, it is parsed and used for type checking, and will
-return an error to the user on invalid types, syntax, or values.
+return an error to the user on invalid types, syntax, values, or unknown config options.
 
-If a `pyproject.toml` is found, Pyrefly will stop searching, even if no `[tool.pyrefly]`
-section is found. The same errors will be returned as when loading a `pyrefly.toml` if
+If a `pyproject.toml` is found, Pyrefly will use the `[tool.pyrefly]`
+section if it exists, otherwise it will assume a default config.
+The same errors will be returned as when loading a `pyrefly.toml` if
 the config is invalid.
 
-## Configuration Options
+# Configuration Options
 
-- `project_includes`: the glob patterns used to describe which files to type
-  check, typically understood as user-space files. This takes highest precedence
-  in import resolution.
-  - Type: list of Unix Glob patterns
-  - Default: `["**/*.py", "**/*.pyi"]`
-  - Flag equivalent: `FILES...` argument
-  - Equivalent configs: `include` in Pyright, `files`/`modules`/`packages` in
-    mypy
-  - Notes:
-    - When overridden by passing in `FILES...`, we do not consult the
-      relevant config file for what to use for `project_excludes`. If
-      `project_excludes` should not use the default value, override it with the flag as
-      well.
-    - When a `project_includes` pattern does not match any files, we will return
-      an error.
-    - If you get an error about no matches for a directory when passing a glob as a CLI
-      argument, try wrapping the glob in quotes to prevent eager shell glob expansion.
-    - We recognize the following wildcards:
-      - `*`, which matches zero or more characters in a single directory component
-      - `**`, which matches the current and any sub directories
-      - `?`, which matches any one character
-- `project_excludes`: the glob patterns used to describe which files to avoid
-  type checking, usually as a more fine-grained way of controlling the files you
-  get type errors on.
-  - Type: list of Unix Glob patterns
-  - Default: `["**/__pycache__/**", "**/.*"]`
-  - Flag equivalent: `--project-excludes`
-  - Equivalent configs: `exclude` in Pyright and mypy
-  - Notes:
-    - We match on these patterns, unlike `project_includes`, where we
-      enumerate all (Python) files under the directory. Because of this,
-      `project_excludes` does not do directory matching unless a `/` is added at
-      the end of your glob pattern. `**/__pycache__/` will only match files under
-      a directory named `__pycache__/`, but not a file named `__pycache__`.
-      Likewise, `**/__pycache__` will only match files named `__pycache__`, but
-      not files under a directory named `__pycache__/`.
-    - It is an error if no files are returned from any `project_includes` because
-      they are filtered out by `project_excludes` entries.
-    - When passing in `FILES...`, we also do not consult the config file for
-      what to use for `project_excludes`. If `project_excludes` should not use
-      the default value, override it with a flag as well.
-    - If you get an error about no matches for a directory when passing a glob as a CLI
-      argument, try wrapping the glob in quotes to prevent eager shell glob expansion.
-    - We recognize the following wildcards:
-      - `*`, which matches zero or more characters in a single directory component
-      - `**`, which matches the current and any sub directories
-      - `?`, which matches any one character
-- `search_path`: a file path describing a root from which imports should be
-  found and imported from (including modules in `project_includes`). This takes
-  the highest precedence in import order, before `typeshed` and
-  `site_package_path`. When a `project_includes` type checked file is imported
-  by another type checked file, we check all search roots to determine how to
-  import it.
-  - Type: list of directories
-  - Default: `["."]`
-  - Flag equivalent: `--search-path`
-  - ENV equivalent: `PYREFLY_SEARCH_PATH`
-  - Equivalent configs: `extraPaths` in Pyright, `mypy_path` in mypy
-  - Notes: we automatically append `"."` (the directory containing the
+The following section lists all recognized options that can be specified in a config
+file or `pyproject.toml` Pyrefly config section.
+
+## `project_includes`
+
+The glob patterns used to describe which files to type
+check, typically understood as user-space files.
+
+This does not specify
+[Import Resolution](./import-resolution.mdx) priority or the path an
+import should be resolved from. See [`search_path`](#search_path) instead.
+
+- Type: list of [filesystem glob patterns](#filesystem-globbing)
+- Default: `["**/*.py", "**/*.pyi"]`
+- Flag equivalent: `FILES...` argument
+- Equivalent configs: `include` in Pyright, `files`/`modules`/`packages` in
+  mypy
+- Notes:
+  - When overridden by passing in `FILES...`, we do not consult the
+    relevant config file for what to use for `project_excludes`. If
+    `project_excludes` should not use the default value, override it with the flag as
+    well.
+  - When a `project_includes` pattern does not match any files, we will return
+    an error.
+  - If you get an error about no matches for a directory when passing a glob as a CLI
+    argument, try wrapping the glob in quotes to prevent eager shell glob expansion.
+
+## `project_excludes`
+
+The glob patterns used to describe which files to avoid
+type checking as way to filter files that match `project_includes`,
+but we don't want to type check.
+
+- Type: list of [filesystem glob patterns](#filesystem-globbing)
+- Default: `["**/__pycache__/**", "**/.[!/.]*"]`
+- Flag equivalent: `--project-excludes`
+- Equivalent configs: `exclude` in Pyright and mypy
+- Notes:
+  - It is an error if no files are returned from any `project_includes` because
+    they are filtered out by `project_excludes` entries. We differentiate between
+    an error from a `project_includes` that doesn't match any files, and an error
+    from all `project_includes` getting filtered by `project_excludes`.
+  - When passing in `FILES...`, we also do not consult the config file for
+    what to use for `project_excludes`. If `project_excludes` should not use
+    the default value, override it with a flag as well. When no `FILES...` are passed,
+    `project_excludes` overrides the config's value.
+
+## `search_path`
+
+A file path describing the roots from which imports should be
+found and imported from (including modules in [`project_includes`](#project-includes)). This takes
+the [highest precedence in import order](./import-resolution.mdx#absolute-imports),
+before `typeshed` and [`site_package_path`](#site_package_path). When a `project_includes`
+type checked file is imported by another type checked file, we check all search roots to
+determine how to import it.
+
+- Type: list of directories specifying the root
+- Default: `["."]`
+- Flag equivalent: `--search-path`
+- ENV equivalent: `PYREFLY_SEARCH_PATH`
+- Equivalent configs: `extraPaths` in Pyright, `mypy_path` in mypy
+- Notes:
+  - We automatically append `"."` (the directory containing the
     configuration file) to the `search_roots` when type checking as a sensible
     default and last attempt at an import.
-- `site_package_path`: a file path describing a root from which imports should
-  be found and imported from. This takes the lowest priority in import
-  resolution, after `project_includes`, `typeshed`, and `search_roots`.
-  - Type: list of directories
-  - Default: result from [Environment Autoconfiguration](#environment-autoconfiguration) or `[]`
-  - Flag equivalent: `--site-package-path`
-  - ENV equivalent: `PYREFLY_SITE_PACKAGE_PATH`
-  - Equivalent configs: none
-- `python_platform`: the value used with conditions based on type checking
-  against
-  [`sys.platform`](https://docs.python.org/3/library/sys.html#sys.platform)
-  values.
-  - Type: string
-  - Default: result from [Environment Autoconfiguration](#environment-autoconfiguration) or "linux"
-  - Flag equivalent: `--python-platform`
-  - ENV equivalent: `PYREFLY_PYTHON_PLATFORM`
-  - Equivalent configs: `pythonPlatform` in Pyright, `platform` in mypy
-- `python_version`: the value used with conditions based on type checking
-  against
-  [`sys.version`](https://docs.python.org/3/library/sys.html#sys.version)
-  values. The format should be `<major>[.<minor>[.<micro>]]`, where minor and
-  micro can be omitted to take the default positional value.
-  - Type: string
-  - Default: result from [Environment Autoconfiguration](#environment-autoconfiguration) or `3.13.0`
-  - Flag equivalent: `--python-version`
-  - ENV equivalent: `PYREFLY_PYTHON_VERSION`
-  - Equivalent configs: `pythonVersion` in Pyright, `python_version` in mypy
-- `python_interpreter`: the Python interpreter to query when attempting to autoconfigure
-  Python environment values (`site_package_path`, `python_platform`, `python_version`).
-  See the [Environment Autoconfiguration section](#environment-autoconfiguration) for more information.
-  - Type: string of executable or path to executable
-  - Default: `python3`
-  - Flag equivalent: `--python-interpreter`
-  - ENV equivalent: `PYREFLY_PYTHON_INTERPRETER`
-  - Equivalent configs: `python_executable` in mypy
-  - Notes:
-    - This executes the value present in the `python_interpreter` field without any checks. It could
-      be a security risk if your `python_interpreter` executes an arbitrary executable.
-    - If you are working on a project shared between multiple people, it is likely best not to use this
-      option, since there might be different Python interpreter versions used on different systems. Instead,
-      we recommend explicitly setting `python_version`, `python_platform`, and `site_package_path`, or using
-      alternative methods of environment autoconfiguration (coming soon).
-- `errors`: configure (enable and disable) the errors Pyrefly shows
-  - Type: Table of error code name to boolean representing enabled status
-  - Default: `errors = {}`
-  - Flag equivalent: none
-  - ENV equivalent: none
-  - Equivalent configs:
-    [type check rule overrides](https://microsoft.github.io/pyright/#/configuration?id=type-check-rule-overrides)
-    and [type evaluation settings](https://microsoft.github.io/pyright/#/configuration?id=type-evaluation-settings)
-    in Pyright,
-    [`enable_error_code`](https://mypy.readthedocs.io/en/stable/config_file.html#confval-enable_error_code) and
-    [`disable_error_code`](https://mypy.readthedocs.io/en/stable/config_file.html#confval-disable_error_code)
-    in mypy
-  - Notes: setting `<error-code> = true` is the same as having no error code configuration present, which means
-    the error will be shown. Setting `<error-code> = false` will disable the error for type checking.
-- `replace_imports_with_any`: [`ModuleGlob`](#module-globbing)s of modules from which import errors should be
-  ignored, and the module should be replaced with `typing.Any`. For example, with
-  `from x.y import z` in a file, adding `x.*`, `*.y`, or `x.y` to this config will
-  silence those import errors and replace the module with `typing.Any`. If the module can be found, its type
-  information will still be replaced with `typing.Any`.
-  - Type: list of regex
-  - Default: `[]`
-  - Flag equivalent: none
-  - ENV equivalent: none
-  - Equivalent configs: `ignore_missing_imports` in mypy
-  - Notes:
-    - `errors = {import-error = false}` (TOML inline table for `errors`) has similar behavior in Pyrefly, but ignores
-      *all* import errors instead of import errors from specific modules, and won't replace findable modules with `typing.Any`.
-- `ignore_errors_in_generated_code`: whether to ignore type errors in generated code. If enabled, generated files
-  will be treated as if they are included in `project_excludes`.
-  Generated code are determined by checking if the file contents contain the substring `{'@' + 'generated'}`.
-  - Type: bool
-  - Default: false
-  - Flag equivalent: `--ignore-errors-in-generated-code`
-  - ENV equivalent: `IGNORE_ERRORS_IN_GENERATED_CODE`
-  - Equivalent configs: none
-- `use_untyped_imports`: whether to search imports in `site_package_path` that do not have a `py.typed` unconditionally.
-  - Type: bool
-  - Default: false
-  - Flag equivalent: none
-  - ENV equivalent: `PYREFLY_USE_UNTYPED_IMPORTS`
-  - Equivalent configs: `useLibraryCodeForTypes` in Pyright, `follow_untyped_imports` in mypy
-  - Notes: if a `<library>-stubs` package exists in `site_package_path`, we will search that first. If an import can't be
-    found, we only fall back to a regular `<library>` package if no relevant `-stubs` package exists, or any package contains a
-    `py.typed` file with `partial\n` in accordance with
-    [the typing spec](https://typing.python.org/en/latest/spec/distributing.html#partial-stub-packages). For all non-`-stubs`
-    packages, a `py.typed` file is required to use the types, unless a `-stubs` package specifies partial, or
-    `use_untyped_imports` is true.
+  - Libraries should not be listed here, since they may override `typeshed`
+    values for your whole project, and have different import semantics with
+    respect to typing. See
+    [Import Resolution](./import-resolution.mdx)
+    for more information about how modules are imported.
 
+## `site_package_path`
+
+A file path describing a root from which imports should
+be found and imported from. This takes the lowest priority in import
+resolution, after [`search_path`](#search_path) and `typeshed`.
+
+`site_package_path` entries have special rules around when they can be imported,
+according to the typing specification. See
+[Site Package Path Typing Rules](./import-resolution.mdx#site-package-path-typing-rules)
+for more information, and [`use_untyped_imports`](#use_untyped_imports) and
+[`ignore_missing_source`](#ignore_missing_source) for details on how to configure
+that behavior.
+
+- Type: list of directories
+- Default: result from [Environment Autoconfiguration](#environment-autoconfiguration), or
+  `[]` if the Python interpreter cannot be queried
+- Flag equivalent: `--site-package-path`
+- ENV equivalent: `PYREFLY_SITE_PACKAGE_PATH`
+- Equivalent configs: none
+
+NOTE: Ideally, this should not be set manually, unless you're using a venv, running one-off tests,
+testing specific behavior, or having trouble with [Environment Autoconfiguration](#environment-autoconfiguration).
+Setting this explicitly, especially when not using a venv, will make it difficult for your configuration
+to be reused between different systems and platforms.
+
+## `python_platform`
+
+The value used with conditions based on type checking
+against
+[`sys.platform`](https://docs.python.org/3/library/sys.html#sys.platform)
+values.
+
+- Type: string
+- Default: result from [Environment Autoconfiguration](#environment-autoconfiguration), or
+  "linux" if the Python interpreter cannot be queried
+- Flag equivalent: `--python-platform`
+- ENV equivalent: `PYREFLY_PYTHON_PLATFORM`
+- Equivalent configs: `pythonPlatform` in Pyright, `platform` in mypy
+
+## `python_version`
+
+The value used with conditions based on type checking
+against
+[`sys.version`](https://docs.python.org/3/library/sys.html#sys.version)
+values. The format should be `<major>[.<minor>[.<micro>]]`, where minor and
+micro can be omitted to take the default positional value.
+
+- Type: string of the format `<major>[.<minor>[.<micro>]]`
+- Default: result from [Environment Autoconfiguration](#environment-autoconfiguration), or
+  `3.13.0` if the Python interpreter cannot be queried
+- Flag equivalent: `--python-version`
+- ENV equivalent: `PYREFLY_PYTHON_VERSION`
+- Equivalent configs: `pythonVersion` in Pyright, `python_version` in mypy
+
+## `python_interpreter`
+
+The Python interpreter to query when attempting to autoconfigure
+Python environment values (`site_package_path`, `python_platform`, `python_version`).
+See the [Environment Autoconfiguration section](#environment-autoconfiguration) for more information.
+
+- Type: path to executable
+- Default: `$(which python3)`, then `$(which python)`, or none
+- Flag equivalent: `--python-interpreter`
+- ENV equivalent: `PYREFLY_PYTHON_INTERPRETER`
+- Equivalent configs: `python_executable` in mypy
+- Notes:
+  - This executes the value present in the `python_interpreter` field without any checks. It could
+    be a security risk if your `python_interpreter` is an arbitrary executable.
+
+NOTE: Ideally, this should not be set manually, unless you're using a venv, running one-off tests,
+testing specific behavior, or having trouble with [Environment Autoconfiguration](#environment-autoconfiguration).
+Setting this explicitly, especially when not using a venv, will make it difficult for your configuration
+to be reused between different systems and platforms.
+
+## `errors`
+
+Configure (enable and disable) the errors Pyrefly emits. `true` (default) tells Pyrefly to
+emit the error, while `false` tells Pyrefly to hide it.
+
+- Type: Table of [error code](./error-kinds.mdx) to boolean representing enabled status
+- Default: `errors = {}`/`[errors]`
+- Flag equivalent: none
+- ENV equivalent: none
+- Equivalent configs:
+  [type check rule overrides](https://microsoft.github.io/pyright/#/configuration?id=type-check-rule-overrides)
+  and [type evaluation settings](https://microsoft.github.io/pyright/#/configuration?id=type-evaluation-settings)
+  in Pyright,
+  [`enable_error_code`](https://mypy.readthedocs.io/en/stable/config_file.html#confval-enable_error_code) and
+  [`disable_error_code`](https://mypy.readthedocs.io/en/stable/config_file.html#confval-disable_error_code)
+  in mypy
+- Notes: setting `<error-code> = true` is the same as having no error code configuration present, which means
+  the error will be shown. Setting `<error-code> = false` will disable the error for type checking.
+
+## `replace_imports_with_any`
+
+[`ModuleGlob`](#module-globbing)s of modules from which import errors should be
+ignored, and the module should be replaced with `typing.Any`. For example, with
+`from x.y import z` in a file, adding `x.*`, `*.y`, or `x.y` to this config will
+silence those import errors and replace the module with `typing.Any`. If the module can be found, its type
+information will still be replaced with `typing.Any`.
+
+- Type: list of regex
+- Default: `[]`
+- Flag equivalent: none
+- ENV equivalent: none
+- Equivalent configs: `ignore_missing_imports` or `follow_imports = skip` in mypy
+- Notes:
+  - `errors = {import-error = false}` (TOML inline table for `errors`) has similar behavior in Pyrefly, but ignores
+    *all* import errors instead of import errors from specific modules, and won't replace findable modules with `typing.Any`.
+
+## `ignore_errors_in_generated_code`
+
+Whether to ignore type errors in generated code. If enabled, generated files
+will be treated as if they are included in `project_excludes`.
+The generated code status is determined by checking if the file contents contain
+the substring '<span>&#64;</span>generated'.
+
+- Type: bool
+- Default: false
+- Flag equivalent: `--ignore-errors-in-generated-code`
+- ENV equivalent: `IGNORE_ERRORS_IN_GENERATED_CODE`
+- Equivalent configs: none
+
+## `use_untyped_imports`
+
+Whether to search imports in [`site_package_path`](#site_package_path) that do not have a
+`py.typed` file unconditionally. When this is true, we skip any checks for `py.typed` files,
+and return the first valid import we can find. See
+[Site Package Path Typing Rules](./import-resolution.mdx#site-package-path-typing-rules) for
+more information on when a `site_package_path` cannot be used for typing information.
+
+- Type: bool
+- Default: false
+- Flag equivalent: none
+- ENV equivalent: none
+- Equivalent configs: `useLibraryCodeForTypes` in Pyright, `follow_untyped_imports` in mypy
+
+## `ignore_missing_source`
+
+Whether to skip the check for a non-stubs package when a `-stubs` package is found in
+[`site_package_path`](#site_package_path). When this is true, we immediately return
+a `-stubs` package when found.
+
+The check for a non-stubs package exists to ensure you have an importable package to use
+in your project. When this check returns an import error, it means we couldn't find a package,
+and that at runtime you may not actually be able to import the given package, even if its
+type stubs could be found. See
+[Stub Files vs Source Files](./import-resolution.mdx#stub-files-vs-source-files) for more information.
+
+# Configuration Details
+
+This section describes some of the configuration options, behaviors, or types in more depth, when
+there are details shared between multiple config options or the information is more than what
+can fit under a single config option description.
 
 ## Environment Autoconfiguration
 
-If any of `python_platform`, `python_version`, or `site_package_path` are empty, we attempt to query an interpreter
-for the missing values. By default we query `python3` if it's available on the path, but the interpreter can be
-overridden with the `python_interpreter` config option and flag. If the interpreter does not exist, we fall back to
-Pyrefly's defaults for all unspecified values.
+If any of [`python_platform`](#python_platform), [`python_version`](#python_version), or
+[`site_package_path`](#site_package_path) are empty, we attempt to query an interpreter
+for the missing values. By default we query `$(which python3)` or `$(which python)` if they're available on the path,
+but the interpreter can be overridden with the [`python_interpreter`](#python_interpreter) config option and flag.
+If the interpreter does not exist, we fall back to Pyrefly's defaults for all unspecified values.
 
 The values queried from the interpreter are:
 * `python_platform`: `sys.platform`
 * `python_version`: `sys.version_info[:3]`
-* `site_package_path`: `site.getsitepackages()`
+* `site_package_path`: `site.getsitepackages() + [site.getusersitepackages()]`
 
-## Module globbing
+## Filesystem Globbing
 
-In some functionality, we've added globbing for module paths. This is different from both path globs and regex,
+We use a standard Unix-style glob, which allows for wildcard matching when specifying a fileset. It is similar
+to regex, but more restricted given the subset of allowed syntax for paths on a filesystem. We currently only
+allow matching files with a `.py` or `.pyi` suffix.
+
+The globs provided are relative to the config, if one is found, or the current working directory otherwise.
+Absolute path globs can also be provided, though this is generally not recommended, since it may not
+be compatible with other systems type checking your project.
+
+- We recognize the following wildcards:
+  - `*`, which matches zero or more characters in a single directory component
+  - `**`, which matches the current and any sub directories/files in those sub directories
+  - `?`, which matches any one character
+  - `[<pattern>]`, which matches any character or character range between the brackets (character range separated by `-`)
+  - `[!<pattern>]`, which excludes any character or character range between the brackets and after the `!`
+  - `[]` can be used to match `?`, `*`, `[`, `]` literally (e.g. `[?]`), although these are invalid as part of a Python path.
+
+We also support non-wildcard paths, so a relative (or absolute) path like `src/` will match all Python files under `src/`
+or `src/my_file.py` will match `src/my_file.py` exactly.
+
+Any directories matched will also have their `.py` and `.pyi` files recursively matched. `src/*` will match all files and
+directories under `src/`, so therefore, we will recursively match everything under `src/`.
+
+Examples:
+- `src/**/*.py`: only match `.py` files under `src/`
+- `src`, `src/`, `src/*`, `src/**`, and `src/**/*`: match all `.py` and `.pyi` files under `src/
+- `?.py` and `[A-z].py`: match any file that looks like `<letter>.py`
+- `src/path/to/my/file.py`: only match `src/path/to/my/file.py`
+- `src/**/tests`, `src/**/tests/`, `src/**/tests/**`, and `src/**/tests/**/*`: match all `.py` and `.pyi` files in `src/`
+  under a directory named `tests`
+
+## Module Globbing
+
+In some config options, we've added globbing for module paths. This is different from both path globs and regex,
 in the sense that we're performing a match on a Python dotted import, such as `this.is.any.module`.
 The only wildcard we recognize is `*`, which represents zero or more segments of a module path, unless it starts a glob,
 in which case it must match one or more segments. The wildcard must be surrounded
@@ -243,3 +369,102 @@ Examples:
 - `this.is.*` would be equivalent to a regex like `^this\.is(\..+)*`. It would match:
   - `this.is.my.module`
   - `this.is`
+
+# Example Configuration
+
+This section displays an example config showing the usage of all config options listed above to make creating
+your own easier, and to give you an easy place to start.
+
+## Default `pyrefly.toml`
+
+This is a configuration with the Pyrefly defaults. If you have an
+interpreter installed, some of these values may be overridden.
+
+```toml
+#### configuring what to type check and where to import from
+project_includes = ["."]
+project_excludes = ["**/__pycache__/**", "**/.[!/.]*"]
+search_path = ["."]
+site_package_path = []
+
+#### configuring your python environment
+python_platform = "linux"
+python_version = "3.13"
+# default is null/none
+# python_interpreter = null
+
+#### configuring your type check settings
+
+replace_imports_with_any = []
+ignore_errors_in_generated_code = false
+use_untyped_imports = false
+ignore_missing_source = false
+
+[errors]
+```
+
+## Example `pyrefly.toml`
+
+```toml
+#### configuring what to type check and where to import from
+project_includes = ["src"]
+project_excludes = ["**/__pycache__/**", "**/.[!/.]*", "**/tests"]
+search_path = ["src"]
+site_package_path = ["venv/lib/python3.12/site-packages"]
+
+#### configuring your python environment
+python_platform = "linux"
+python_version = "3.12"
+python_interpreter = "venv/bin/python3"
+
+#### configuring your type check settings
+replace_imports_with_any = [
+  "sympy.*",
+  "*.series",
+]
+
+ignore_errors_in_generated_code = true
+use_untyped_imports = true
+ignore_missing_source = true
+
+[errors]
+bad-assignment = false
+invalid-argument = false
+```
+
+## Example `pyproject.toml`
+
+```toml
+...
+
+# Pyrefly header
+[pyrefly]
+
+#### configuring what to type check and where to import from
+project_includes = ["src"]
+project_excludes = ["**/__pycache__/**", "**/.[!/.]*", "**/tests"]
+search_path = ["src"]
+site_package_path = ["venv/lib/python3.12/site-packages"]
+
+#### configuring your python environment
+python_platform = "linux"
+python_version = "3.12"
+python_interpreter = "venv/bin/python3"
+
+#### configuring your type check settings
+replace_imports_with_any = [
+  "sympy.*",
+  "*.series",
+]
+
+ignore_errors_in_generated_code = true
+use_untyped_imports = true
+ignore_missing_source = true
+
+[pyrefly.errors]
+bad-assignment = false
+invalid-argument = false
+
+# other non-Pyrefly configs
+...
+```
